@@ -20,7 +20,7 @@ nest_asyncio.apply()
 
 
 class DesmosGraph(Group):
-    """DesmosグラフをManimで表示"""
+    """Display Desmos graph in Manim"""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class DesmosGraph(Group):
         parameters:
         ----------
         state: str | None
-            Desmosの状態(JSON文字列)。
+            Desmos state (JSON string).
         width: int
         height: int
         is3D: bool = False
@@ -74,14 +74,14 @@ class DesmosGraph(Group):
             shoeBox3D: bool = True,
         }
         img_format: str = "png"
-            取得する画像フォーマット。'png'または'svg'。3Dは'svg'非対応。
+            Image format to retrieve. 'png' or 'svg'. 3D doesn't support 'svg'.
         use_cache: bool = False
-            画像をキャッシュするかどうか。Falseの場合、get_state()などの処理を省略できるため逆に高速になる可能性もある。
-            Trueでもstateの計算自体は行い、あくまでもスクリーンショットを撮る工程を省略する。
+            Whether to cache images. If False, processes like get_state() can be skipped, potentially making it faster.
+            Even if True, state calculation is still performed; only the screenshot process is skipped.
         """
         super().__init__(**kwargs)
 
-        # キャッシュ設定
+        # Cache settings
         self.use_cache = use_cache
         if self.use_cache:
             self.cache_dir = Path("media/desmos")
@@ -89,24 +89,24 @@ class DesmosGraph(Group):
         else:
             self.cache_dir = None
 
-        # 現在の画像
+        # Current image
         self.current_image = None
         self.graph_width = width
         self.graph_height = height
         self.background_color = background_color
         self.is3D = is3D
         self.calc_options = calc_options
-        # 3DならばbackgroundColorはcalc_optionsに設定すれば反映される
-        # 2Dの場合は不等式で塗りつぶす必要がある
+        # For 3D, backgroundColor is applied if set in calc_options
+        # For 2D, need to fill with inequality
         if background_color is not None:
             if self.calc_options is None:
                 self.calc_options = {}
             self.calc_options["backgroundColor"] = background_color
         self.graph_settings = graph_settings
         self.img_format = img_format if not is3D else "png"
-        # TODO: svgは上手く表示できないので一旦無効化
+        # TODO: svg doesn't display properly, so disable for now
         self.img_format = "png"
-        # isPlayingはfalseにする
+        # Set isPlaying to false
         asyncio.run(
             self._init_graph(
                 re.sub(r".isPlaying.: *true", '"isPlaying": false', state or "")
@@ -117,14 +117,14 @@ class DesmosGraph(Group):
 
     async def _init_graph(self, state: str):
         self.playwright = await async_playwright().start()
-        # 3DはGPUを有効化しないと遅い
+        # 3D requires GPU enabled or it will be slow
         self.browser = await self.playwright.chromium.launch(
             headless=True,
             args=["--enable-gpu"],
         )
         self.page = await self.browser.new_page()
         await self.page.set_viewport_size({"width": 600, "height": 400})
-        # これ以上長いhtmlはdata URLで渡せない可能性あり
+        # HTML longer than this may not be passable via data URL
         await self.page.goto(
             f"""
                 data:text/html,
@@ -188,12 +188,12 @@ class DesmosGraph(Group):
                 )
 
     def _generate_cache_key(self) -> str:
-        """現在のDesmosの状態からキャッシュキーを生成"""
+        """Generate cache key from current Desmos state"""
         try:
-            # 現在の状態を取得
+            # Get current state
             state = self.get_state()
 
-            # キャッシュキーに影響する要素を組み合わせ
+            # Combine elements that affect cache key
             cache_data = {
                 "state": state,
                 "width": self.graph_width,
@@ -204,22 +204,22 @@ class DesmosGraph(Group):
                 "graph_settings": self.graph_settings,
             }
 
-            # JSON文字列にしてハッシュ化
+            # Convert to JSON string and hash
             cache_str = json.dumps(cache_data, sort_keys=True, ensure_ascii=False)
             return hashlib.sha256(cache_str.encode("utf-8")).hexdigest()[
                 :16
-            ]  # 16文字に短縮
+            ]  # Shorten to 16 characters
         except Exception:
-            # エラーの場合はタイムスタンプベースのキーを返す
+            # Return timestamp-based key on error
             import time
 
             return f"fallback_{int(time.time())}"
 
     def _get_cache_path(self, cache_key: str) -> Path:
-        """キャッシュファイルのパスを取得"""
-        # self.cache_dir が None の場合、fallback として一時ディレクトリ内にキャッシュディレクトリを作成する
+        """Get cache file path"""
+        # If self.cache_dir is None, create cache directory in temp directory as fallback
         if self.cache_dir is None:
-            # tempfile はファイルの先頭でインポート済み
+            # tempfile is already imported at the top of the file
             fallback_dir = Path(tempfile.gettempdir()) / "desmos"
             fallback_dir.mkdir(parents=True, exist_ok=True)
             cache_dir = fallback_dir
@@ -230,52 +230,52 @@ class DesmosGraph(Group):
         return cache_dir / f"{cache_key}.{extension}"
 
     def _load_from_cache(self, cache_key: str):
-        """キャッシュファイルが存在する場合、そのパスを返す"""
+        """Return file path if cache file exists"""
         cache_path = self._get_cache_path(cache_key)
 
         if cache_path.exists():
-            return str(cache_path)  # ファイルパスを文字列として返す
+            return str(cache_path)  # Return file path as string
 
         return None
 
     def _save_to_cache(self, cache_key: str, data, is_data_url: bool = False):
-        """データをキャッシュファイルに保存"""
+        """Save data to cache file"""
         cache_path = self._get_cache_path(cache_key)
 
         try:
             if self.img_format == "svg":
-                # SVG文字列をファイルに保存
+                # Save SVG string to file
                 cache_path.write_text(data, encoding="utf-8")
             else:
-                # data URLの場合はbase64デコードして保存
+                # For data URL, decode base64 and save
                 if is_data_url:
                     header, base64_data = data.split(",", 1)
                     screenshot_bytes = base64.b64decode(base64_data)
                     cache_path.write_bytes(screenshot_bytes)
                 else:
-                    # NumPy配列をPNG画像として保存
+                    # Save NumPy array as PNG image
                     pil_image = Image.fromarray(data)
                     pil_image.save(cache_path, "PNG")
         except Exception as e:
-            print(f"キャッシュ保存に失敗: {e}")
+            print(f"Failed to save cache: {e}")
 
     def clear_cache(self):
-        """キャッシュディレクトリをクリア"""
+        """Clear cache directory"""
         try:
             if self.cache_dir is None:
-                print("キャッシュディレクトリが設定されていません。")
+                print("Cache directory is not set.")
                 return
             for cache_file in self.cache_dir.glob("*"):
                 if cache_file.is_file():
                     cache_file.unlink()
-            print(f"キャッシュをクリアしました: {self.cache_dir}")
+            print(f"Cache cleared: {self.cache_dir}")
         except Exception as e:
-            print(f"キャッシュクリアに失敗: {e}")
+            print(f"Failed to clear cache: {e}")
 
     def get_cache_info(self):
-        """キャッシュの情報を表示"""
+        """Display cache information"""
         if self.cache_dir is None:
-            print("キャッシュディレクトリが設定されていません。")
+            print("Cache directory is not set.")
             return
 
         cache_files = list(self.cache_dir.glob("*"))
@@ -289,7 +289,7 @@ class DesmosGraph(Group):
         }
 
     def execute_js(self, script: str, update_display: bool = True):
-        """JavaScriptコードを実行"""
+        """Execute JavaScript code"""
         loop = asyncio.get_event_loop()
         res = loop.run_until_complete(self.page.evaluate(script))
         if update_display:
@@ -297,7 +297,7 @@ class DesmosGraph(Group):
         return res
 
     def update_calc_options(self, options: Dict):
-        """Desmosのcalc_optionsを更新"""
+        """Update Desmos calc_options"""
         for key, value in options.items():
             self.execute_js(
                 f"""
@@ -306,7 +306,7 @@ class DesmosGraph(Group):
             )
 
     def update_graph_settings(self, settings: Dict):
-        """Desmosのgraph_settingsを更新"""
+        """Update Desmos graph_settings"""
         for key, value in settings.items():
             self.execute_js(
                 f"""
@@ -315,43 +315,43 @@ class DesmosGraph(Group):
             )
 
     def _create_screenshot(self):
-        """スクリーンショット取得してファイルパスまたはデータとして返す"""
+        """Take screenshot and return as file path or data"""
         if self.use_cache:
             return self._create_screenshot_with_cache()
         else:
             return self._create_screenshot_direct()
 
     def _create_screenshot_with_cache(self):
-        """キャッシュ機能付きスクリーンショット取得"""
-        # stateからキャッシュキーを生成
+        """Take screenshot with caching"""
+        # Generate cache key from state
         cache_key = self._generate_cache_key()
 
-        # キャッシュから読み込みを試行
+        # Try to load from cache
         cached_path = self._load_from_cache(cache_key)
         if cached_path is not None:
             return cached_path
 
-        # キャッシュが無い場合は新規にスクリーンショットを取得
+        # If no cache, take new screenshot
         data = self._get_screenshot_data()
 
-        # キャッシュに保存
+        # Save to cache
         if self.img_format == "svg":
             self._save_to_cache(cache_key, data)
         else:
             self._save_to_cache(cache_key, data, is_data_url=True)
 
-        # 保存されたファイルのパスを返す
+        # Return saved file path
         return str(self._get_cache_path(cache_key))
 
     def _create_screenshot_direct(self):
-        """キャッシュなし直接スクリーンショット取得"""
-        # 直接スクリーンショットを取得してデータを返す
+        """Take screenshot directly without cache"""
+        # Take screenshot directly and return data
         return self._get_screenshot_data()
 
     def _get_screenshot_data(self):
-        """スクリーンショットデータを取得（共通処理）"""
+        """Get screenshot data (common process)"""
         if self.is3D:
-            # 3Dは正方形で
+            # Use square for 3D
             width = min(self.graph_width, self.graph_height) / 2
             return self.execute_js(
                 f"""
@@ -381,7 +381,7 @@ class DesmosGraph(Group):
             )
 
     def set_blank(self):
-        """Desmosを空白に設定"""
+        """Set Desmos to blank"""
         self.execute_js(
             """
                 window.Calc.setBlank();
@@ -389,7 +389,7 @@ class DesmosGraph(Group):
         )
 
     def set_state(self, state: str, update_display: bool = True):
-        """Desmosの状態を設定"""
+        """Set Desmos state"""
         self.execute_js(
             f"""
                 window.Calc.setState({state});
@@ -398,7 +398,7 @@ class DesmosGraph(Group):
         )
 
     def get_state(self) -> Dict:
-        """Desmosの状態を取得"""
+        """Get Desmos state"""
         return self.execute_js(
             """
                 new Promise((resolve) => {
@@ -411,7 +411,7 @@ class DesmosGraph(Group):
         )
 
     def set_expression(self, expression: Dict, update_display: bool = True):
-        """Desmosの式を設定"""
+        """Set Desmos expression"""
         self.execute_js(
             f"""
                 window.Calc.setExpression(
@@ -422,7 +422,7 @@ class DesmosGraph(Group):
         )
 
     def set_expressions(self, expressions: List[Dict], update_display: bool = True):
-        """Desmosの式リストを設定"""
+        """Set Desmos expression list"""
         self.execute_js(
             f"""
                 window.Calc.setExpressions(
@@ -433,7 +433,7 @@ class DesmosGraph(Group):
         )
 
     def get_expressions(self) -> List[Dict]:
-        """Desmosの式リストを取得"""
+        """Get Desmos expression list"""
         return self.execute_js(
             """
                 window.Calc.getExpressions();
@@ -442,19 +442,19 @@ class DesmosGraph(Group):
         )
 
     def set_mathBounds(self, bounds: Dict, update_display: bool = True):
-        """Desmosの表示範囲を設定"""
+        """Set Desmos display range"""
         import json
 
-        # NumPy型を含む値をPythonの標準型に変換
+        # Convert values containing NumPy types to Python standard types
         converted_bounds = {}
         for key, value in bounds.items():
-            # NumPy型やその他の数値型をfloatに変換
+            # Convert NumPy types and other numeric types to float
             if hasattr(value, "item"):  # NumPy scalar
                 converted_bounds[key] = float(value.item())
             else:
                 converted_bounds[key] = float(value)
 
-        # JSONで確実にJavaScript形式に変換
+        # Convert to JavaScript format with JSON
         bounds_js = json.dumps(converted_bounds)
 
         self.execute_js(
@@ -465,14 +465,14 @@ class DesmosGraph(Group):
         )
 
     def get_mathBounds(self) -> Dict:
-        """Desmosの表示範囲を取得"""
+        """Get Desmos display range"""
         bound = self.execute_js(
             """
                 window.Calc.getState().graph.viewport;
             """,
             update_display=False,
         )
-        # アスペクトに合わせてy軸の範囲を調整
+        # Adjust y-axis range according to aspect ratio
         return (
             self.is3D
             and bound
@@ -498,18 +498,18 @@ class DesmosGraph(Group):
         self, z_tip=None, xy_rot=None, update_display: bool = True, **kwargs
     ):
         """
-        3Dグラフの回転角度を絶対値で設定する（即時反映）。
-        z_tip, xy_rotはラジアン。どちらか一方だけ指定も可。
+        Set 3D graph rotation angle as absolute value (immediate reflection).
+        z_tip, xy_rot are in radians. Either one can be specified.
         """
         if not self.is3D:
             return
 
-        # 現在の回転角度を取得
+        # Get current rotation angle
         current_orientation = self.get_current_orientation()
         z_tip_val = z_tip if z_tip is not None else current_orientation["zTip"]
         xy_rot_val = xy_rot if xy_rot is not None else current_orientation["xyRot"]
 
-        # orientation.tsのorientationFromEulerと同じ計算
+        # Same calculation as orientationFromEuler in orientation.ts
         cos_z = math.cos(z_tip_val)
         sin_z = math.sin(z_tip_val)
         cos_xy = math.cos(xy_rot_val)
@@ -533,13 +533,13 @@ class DesmosGraph(Group):
         self, z_tip_delta=None, xy_rot_delta=None, update_display: bool = True
     ):
         """
-        3Dグラフの回転角度を相対値で設定する（即時反映）。
-        z_tip_delta, xy_rot_deltaはラジアン。どちらか一方だけ指定も可。
+        Set 3D graph rotation angle as relative value (immediate reflection).
+        z_tip_delta, xy_rot_delta are in radians. Either one can be specified.
         """
         if not self.is3D:
             return
 
-        # 現在の回転角度を取得
+        # Get current rotation angle
         current_orientation = self.get_current_orientation()
         z_tip_val = current_orientation["zTip"] + (
             z_tip_delta if z_tip_delta is not None else 0
@@ -548,7 +548,7 @@ class DesmosGraph(Group):
             xy_rot_delta if xy_rot_delta is not None else 0
         )
 
-        # orientation.tsのorientationFromEulerと同じ計算
+        # Same calculation as orientationFromEuler in orientation.ts
         cos_z = math.cos(z_tip_val)
         sin_z = math.sin(z_tip_val)
         cos_xy = math.cos(xy_rot_val)
@@ -569,7 +569,7 @@ class DesmosGraph(Group):
         )
 
     def action_single_step(self, exp_id: str, update_display: bool = True):
-        """Desmosで単一ステップアクションを実行"""
+        """Execute single step action in Desmos"""
         self.execute_js(
             f"""
                 window.Calc.controller.dispatch({{
@@ -584,11 +584,11 @@ class DesmosGraph(Group):
         )
 
     def action_multi_step(self, exp_id: str, steps: int, update_display: bool = True):
-        """Desmosでマルチステップアクションを実行"""
+        """Execute multi-step action in Desmos"""
         if steps <= 0:
             return
         else:
-            # 最後のみupdate_display=Trueにする
+            # Set update_display=True only for the last step
             for i in range(steps - 1):
                 self.execute_js(
                     f"""
@@ -605,18 +605,18 @@ class DesmosGraph(Group):
             self.action_single_step(exp_id, update_display=update_display)
 
     def update_display(self):
-        """表示を更新（ファイルパスまたはデータからMobjectを作成）"""
+        """Update display (create Mobject from file path or data)"""
         if self.use_cache:
             self._update_display_with_cache()
         else:
             self._update_display_direct()
 
     def _update_display_with_cache(self):
-        """キャッシュありの表示更新"""
-        # スクリーンショットファイルのパスを取得
+        """Update display with cache"""
+        # Get screenshot file path
         image_path = self._create_screenshot()
 
-        # ファイルパスから直接Mobjectを作成
+        # Create Mobject directly from file path
         if self.img_format == "svg":
             new_image = SVGMobject(image_path)
         else:
@@ -625,12 +625,12 @@ class DesmosGraph(Group):
         self._replace_current_image(new_image)
 
     def _update_display_direct(self):
-        """キャッシュなしの表示更新"""
-        # 直接スクリーンショットデータを取得
+        """Update display without cache"""
+        # Get screenshot data directly
         screenshot_data = self._create_screenshot()
 
         if self.img_format == "svg":
-            # SVGの場合は一時ファイルを作成
+            # Create temporary file for SVG
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".svg", delete=False
             ) as temp_file:
@@ -639,9 +639,9 @@ class DesmosGraph(Group):
                 new_image = SVGMobject(
                     temp_file.name, height=self.graph_height, width=self.graph_width
                 )
-                os.unlink(temp_file.name)  # 一時ファイルを削除
+                os.unlink(temp_file.name)  # Delete temporary file
         else:
-            # PNGの場合は直接データから作成
+            # Create directly from data for PNG
             header, base64_data = screenshot_data.split(",", 1)
             screenshot_bytes = base64.b64decode(base64_data)
             pil_image = Image.open(io.BytesIO(screenshot_bytes))
@@ -653,10 +653,10 @@ class DesmosGraph(Group):
         self._replace_current_image(new_image)
 
     def _replace_current_image(self, new_image):
-        """現在の画像を新しい画像に置き換える共通処理"""
-        # 古い画像を削除
+        """Common process to replace current image with new image"""
+        # Remove old image
         if self.current_image is not None:
-            # 古い画像を新しい画像に置き換え
+            # Replace old image with new image
             self.current_image.become(
                 new_image,
                 match_height=True,
@@ -670,17 +670,17 @@ class DesmosGraph(Group):
             self.add(self.current_image)
 
     def add_updater(self, updater: Callable):
-        """アップデーターを追加"""
+        """Add updater"""
         if self.current_image is not None:
             self.current_image.add_updater(updater)
 
     def remove_updater(self, updater: Callable):
-        """アップデーターを削除"""
+        """Remove updater"""
         if self.current_image is not None:
             self.current_image.remove_updater(updater)
 
     def get_updaters(self):
-        """アップデーターを取得"""
+        """Get updaters"""
         if self.current_image is not None:
             return self.current_image.get_updaters()
         return []
@@ -688,7 +688,7 @@ class DesmosGraph(Group):
     def animate_parameter(
         self, name, start_value, end_value, update_display: bool = True, **kwargs
     ):
-        """パラメータをアニメーション化"""
+        """Animate parameter"""
         return DesmosParameterAnimation(
             self, name, start_value, end_value, update_display=update_display, **kwargs
         )
@@ -696,10 +696,10 @@ class DesmosGraph(Group):
     def animate_translation(
         self, dx=0, dy=0, dz=0, update_display: bool = True, **kwargs
     ):
-        """グラフを並進移動させるアニメーションを作成"""
+        """Create animation to translate the graph"""
         current_bounds = self.get_mathBounds()
 
-        # 現在の境界値を取得
+        # Get current boundary values
         start_bounds = {
             "xmin": current_bounds.get("xmin", -10),
             "xmax": current_bounds.get("xmax", 10),
@@ -707,12 +707,12 @@ class DesmosGraph(Group):
             "ymax": current_bounds.get("ymax", 10),
         }
 
-        # 3Dの場合はz軸も追加
+        # Add z-axis for 3D
         if self.is3D:
             start_bounds["zmin"] = current_bounds.get("zmin", -10)
             start_bounds["zmax"] = current_bounds.get("zmax", 10)
 
-        # 移動後の境界値を計算
+        # Calculate boundary values after translation
         end_bounds = {
             "xmin": start_bounds["xmin"] + dx,
             "xmax": start_bounds["xmax"] + dx,
@@ -731,10 +731,10 @@ class DesmosGraph(Group):
     def animate_bounds_transition(
         self, target_bounds, update_display: bool = True, **kwargs
     ):
-        """指定されたmathBoundsに遷移するアニメーションを作成"""
+        """Create animation to transition to specified mathBounds"""
         current_bounds = self.get_mathBounds()
 
-        # 現在の境界値を取得
+        # Get current boundary values
         start_bounds = {
             "xmin": current_bounds.get("xmin", -10),
             "xmax": current_bounds.get("xmax", 10),
@@ -759,7 +759,7 @@ class DesmosGraph(Group):
         update_display: bool = True,
         **kwargs,
     ):
-        """グラフを指定した点を中心に拡大縮小させるアニメーションを作成"""
+        """Create animation to zoom the graph centered at specified point"""
         current_bounds = self.get_mathBounds()
         width = current_bounds["xmax"] - current_bounds["xmin"]
         height = current_bounds["ymax"] - current_bounds["ymin"]
@@ -783,15 +783,15 @@ class DesmosGraph(Group):
     def animate_rotation(
         self, z_tip_delta=0, xy_rot_delta=0, update_display: bool = True, **kwargs
     ):
-        """3Dグラフを回転させるアニメーションを作成（相対角度指定）"""
+        """Create animation to rotate 3D graph (relative angle specification)"""
         if not self.is3D:
-            raise ValueError("回転アニメーションは3Dグラフでのみ使用できます")
+            raise ValueError("Rotation animation is only available for 3D graphs")
 
         return DesmosRotationAnimation(
             self,
-            end_z_tip=z_tip_delta,  # 相対値として使用
-            end_xy_rot=xy_rot_delta,  # 相対値として使用
-            relative=True,  # 相対回転フラグ
+            end_z_tip=z_tip_delta,  # Used as relative value
+            end_xy_rot=xy_rot_delta,  # Used as relative value
+            relative=True,  # Relative rotation flag
             update_display=update_display,
             **kwargs,
         )
@@ -799,9 +799,9 @@ class DesmosGraph(Group):
     def animate_rotation_to(
         self, z_tip=None, xy_rot=None, update_display: bool = True, **kwargs
     ):
-        """3Dグラフを指定角度まで回転させるアニメーションを作成（絶対角度指定）"""
+        """Create animation to rotate 3D graph to specified angle (absolute angle specification)"""
         if not self.is3D:
-            raise ValueError("回転アニメーションは3Dグラフでのみ使用できます")
+            raise ValueError("Rotation animation is only available for 3D graphs")
 
         return DesmosRotationAnimation(
             self,
@@ -812,11 +812,11 @@ class DesmosGraph(Group):
         )
 
     def get_current_orientation(self) -> Dict:
-        """現在の3D回転角度を取得"""
+        """Get current 3D rotation angle"""
         if not self.is3D:
             return {"zTip": 0, "xyRot": 0}
 
-        # DesmosのworldRotation3Dから現在の回転行列を取得
+        # Get current rotation matrix from Desmos worldRotation3D
         matrix_elements = self.execute_js(
             """
             Calc.controller.grapher3d.controls.worldRotation3D.elements;
@@ -825,7 +825,7 @@ class DesmosGraph(Group):
         )
 
         if matrix_elements and len(matrix_elements) >= 9:
-            # matrix3.tsのeulerFromOrientationと同じ計算
+            # Same calculation as eulerFromOrientation in matrix3.ts
             z_tip = math.atan2(-matrix_elements[6], matrix_elements[8])
             xy_rot = math.atan2(matrix_elements[4], -matrix_elements[1])
             if xy_rot < 0:
@@ -835,9 +835,9 @@ class DesmosGraph(Group):
             return {"zTip": 0, "xyRot": 0}
 
     def _get_set_rotation_js(self, m11, m12, m13, m21, m22, m23, m31, m32, m33) -> str:
-        """3Dグラフの回転を設定するためのJavaScriptコードを生成"""
+        """Generate JavaScript code to set 3D graph rotation"""
 
-        # TODO: getState()をしないとたまにスクショにグラフが映らない事がある。getState()より処理が軽く確実な方法があればそちらに変更したい。
+        # TODO: Sometimes graph doesn't appear in screenshot without getState(). If there's a lighter and more reliable method than getState(), switch to that.
         return f"""
             const matrix = Calc.controller.grapher3d.controls.worldRotation3D.clone().set(
                 {m11}, {m12}, {m13},
@@ -851,7 +851,7 @@ class DesmosGraph(Group):
             """
 
     def cleanup(self):
-        # ブラウザを閉じる
+        # Close browser
         try:
             if hasattr(self, "browser"):
                 asyncio.run(self.browser.close())
@@ -861,7 +861,7 @@ class DesmosGraph(Group):
             pass
 
     def __deepcopy__(self, memo):
-        """deepcopyでPlaywright関連のオブジェクトを除外"""
+        """Exclude Playwright-related objects in deepcopy"""
         import copy
 
         cls = self.__class__
@@ -869,7 +869,7 @@ class DesmosGraph(Group):
         memo[id(self)] = result
 
         for k, v in self.__dict__.items():
-            # Playwright関連のオブジェクトは除外
+            # Exclude Playwright-related objects
             if k in ["playwright", "browser", "page"]:
                 setattr(result, k, None)
             else:
@@ -881,7 +881,7 @@ class DesmosGraph(Group):
 
 
 class DesmosParameterAnimation(Animation):
-    """Desmosパラメータアニメーション"""
+    """Desmos parameter animation"""
 
     def __init__(
         self,
@@ -907,7 +907,7 @@ class DesmosParameterAnimation(Animation):
         )
         if len(expressions) == 0:
             raise ValueError(
-                f"Desmosグラフに式IDまたはパラメータ名 '{self.exp_id}' が見つかりません。"
+                f"Expression ID or parameter name '{self.exp_id}' not found in Desmos graph."
             )
         expression = expressions[0]
         self.latex = expression.get("latex", "")
@@ -918,8 +918,8 @@ class DesmosParameterAnimation(Animation):
             self.exp_id = expression.get("id")
 
     def interpolate_mobject(self, alpha):
-        """アニメーション進行に応じてパラメータを更新"""
-        # イージング(rate_func)が何故か効かないので手動で適用
+        """Update parameter according to animation progress"""
+        # Manually apply easing (rate_func) since it doesn't work for some reason
         current_value = self.start_value + self.rate_func(alpha) * (
             self.end_value - self.start_value
         )
@@ -930,13 +930,13 @@ class DesmosParameterAnimation(Animation):
 
 
 class DesmosActionAnimation(Animation):
-    """Desmosアクションアニメーション"""
+    """Desmos action animation"""
 
     def __init__(
         self,
         desmos_graph: DesmosGraph,
         exp_id: str,
-        steps: int = 1,  # 実行回数
+        steps: int = 1,  # Number of executions
         update_display: bool = True,
         **kwargs,
     ):
@@ -948,10 +948,10 @@ class DesmosActionAnimation(Animation):
         self.last_step = -1
 
     def interpolate_mobject(self, alpha):
-        """アニメーション進行に応じてアクションを複数回実行"""
-        # 進行度に応じて何回目のステップか計算
+        """Execute action multiple times according to animation progress"""
+        # Calculate which step based on progress
         current_step = int(alpha * self.steps)
-        # 新しいステップに到達したらアクション実行
+        # Execute action when new step is reached
         while self.last_step < current_step:
             self.last_step += 1
             if self.last_step < self.steps:
@@ -961,7 +961,7 @@ class DesmosActionAnimation(Animation):
 
 
 class DesmosTranslationAnimation(Animation):
-    """Desmosグラフの移動アニメーション（mathBoundsを使用）"""
+    """Desmos graph translation animation (using mathBounds)"""
 
     def __init__(
         self,
@@ -978,11 +978,11 @@ class DesmosTranslationAnimation(Animation):
         self.update_display = update_display
 
     def interpolate_mobject(self, alpha):
-        """アニメーション進行に応じてmathBoundsを更新"""
-        # イージング(rate_func)を手動で適用
+        """Update mathBounds according to animation progress"""
+        # Manually apply easing (rate_func)
         eased_alpha = self.rate_func(alpha)
 
-        # 各座標軸の値を線形補間
+        # Linear interpolation for each axis value
         current_bounds = {}
         for key in self.start_bounds:
             if key in self.end_bounds:
@@ -990,23 +990,23 @@ class DesmosTranslationAnimation(Animation):
                 end_val = self.end_bounds[key]
                 current_bounds[key] = start_val + eased_alpha * (end_val - start_val)
 
-        # mathBoundsを更新
+        # Update mathBounds
         self.desmos_graph.set_mathBounds(
             current_bounds, update_display=self.update_display
         )
 
 
 class DesmosRotationAnimation(Animation):
-    """Desmos 3Dグラフの回転アニメーション（オイラー角を使用）"""
+    """Desmos 3D graph rotation animation (using Euler angles)"""
 
     def __init__(
         self,
         desmos_graph: DesmosGraph,
-        start_z_tip: float | None = None,  # 開始時のzTip角度（ラジアン）
-        end_z_tip: float | None = None,  # 終了時のzTip角度（ラジアン）
-        start_xy_rot: float | None = None,  # 開始時のxyRot角度（ラジアン）
-        end_xy_rot: float | None = None,  # 終了時のxyRot角度（ラジアン）
-        relative: bool = False,  # 相対回転かどうか
+        start_z_tip: float | None = None,  # Starting zTip angle (radians)
+        end_z_tip: float | None = None,  # Ending zTip angle (radians)
+        start_xy_rot: float | None = None,  # Starting xyRot angle (radians)
+        end_xy_rot: float | None = None,  # Ending xyRot angle (radians)
+        relative: bool = False,  # Whether relative rotation
         update_display: bool = True,
         **kwargs,
     ):
@@ -1014,7 +1014,7 @@ class DesmosRotationAnimation(Animation):
         self.desmos_graph = desmos_graph
         self.update_display = update_display
 
-        # 現在の回転角度を取得
+        # Get current rotation angle
         current_orientation = desmos_graph.get_current_orientation()
 
         self.start_z_tip = (
@@ -1025,7 +1025,7 @@ class DesmosRotationAnimation(Animation):
         )
 
         if relative:
-            # 相対回転の場合、現在角度に加算
+            # For relative rotation, add to current angle
             self.end_z_tip = self.start_z_tip + (
                 end_z_tip if end_z_tip is not None else 0
             )
@@ -1033,7 +1033,7 @@ class DesmosRotationAnimation(Animation):
                 end_xy_rot if end_xy_rot is not None else 0
             )
         else:
-            # 絶対回転の場合
+            # For absolute rotation
             self.end_z_tip = (
                 end_z_tip if end_z_tip is not None else current_orientation["zTip"]
             )
@@ -1042,27 +1042,27 @@ class DesmosRotationAnimation(Animation):
             )
 
     def _atan2_positive(self, y: float, x: float) -> float:
-        """atan2の結果を0～2πの範囲に正規化"""
+        """Normalize atan2 result to 0~2π range"""
         a = math.atan2(y, x)
         if a < 0:
             a += 2 * math.pi
         return a
 
     def _set_orientation_from_euler(self, z_tip: float, xy_rot: float):
-        """オイラー角から3D回転を設定"""
+        """Set 3D rotation from Euler angles"""
         if not self.desmos_graph.is3D:
             return
 
-        # orientation.tsのorientationFromEulerと同じ計算
-        # zTip回転行列
+        # Same calculation as orientationFromEuler in orientation.ts
+        # zTip rotation matrix
         cos_z = math.cos(z_tip)
         sin_z = math.sin(z_tip)
 
-        # xyRot回転行列
+        # xyRot rotation matrix
         cos_xy = math.cos(xy_rot)
         sin_xy = math.sin(xy_rot)
 
-        # 回転行列の乗算結果（orientationFromEulerのコメント通り）
+        # Rotation matrix multiplication result (as per orientationFromEuler comment)
         m11 = cos_z * sin_xy
         m12 = cos_z * cos_xy
         m13 = -sin_z
@@ -1073,7 +1073,7 @@ class DesmosRotationAnimation(Animation):
         m32 = sin_z * cos_xy
         m33 = cos_z
 
-        # Desmosに回転行列を設定
+        # Set rotation matrix in Desmos
         self.desmos_graph.execute_js(
             self.desmos_graph._get_set_rotation_js(
                 m11, m12, m13, m21, m22, m23, m31, m32, m33
@@ -1082,14 +1082,14 @@ class DesmosRotationAnimation(Animation):
         )
 
     def interpolate_mobject(self, alpha):
-        """アニメーション進行に応じて3D回転を更新"""
+        """Update 3D rotation according to animation progress"""
         if not self.desmos_graph.is3D:
             return
 
-        # イージング(rate_func)を手動で適用
+        # Manually apply easing (rate_func)
         eased_alpha = self.rate_func(alpha)
 
-        # 角度を線形補間
+        # Linear interpolation of angles
         current_z_tip = self.start_z_tip + eased_alpha * (
             self.end_z_tip - self.start_z_tip
         )
@@ -1097,8 +1097,8 @@ class DesmosRotationAnimation(Animation):
             self.end_xy_rot - self.start_xy_rot
         )
 
-        # 3D回転を設定
+        # Set 3D rotation
         self._set_orientation_from_euler(current_z_tip, current_xy_rot)
 
-        # 表示を更新
+        # Update display
         self.desmos_graph.update_display() if self.update_display else None
