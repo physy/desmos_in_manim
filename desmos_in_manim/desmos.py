@@ -443,6 +443,36 @@ class DesmosGraph(Group):
 
     def set_mathBounds(self, bounds: Dict, update_display: bool = True):
         """Set Desmos display range"""
+        bounds = dict(bounds)  # Create a copy to avoid modifying the original
+        if (
+            "xmin" in bounds
+            and "xmax" in bounds
+            and ("ymin" not in bounds or "ymax" not in bounds)
+        ):
+            # If y range is not specified, calculate it according to aspect ratio
+            current_bounds = self.get_mathBounds()
+            x_range = bounds.get("xmax", current_bounds["xmax"]) - bounds.get(
+                "xmin", current_bounds["xmin"]
+            )
+            y_center = (current_bounds["ymin"] + current_bounds["ymax"]) / 2
+            y_half_range = (x_range * self.height) / (self.width * 2)
+            bounds["ymin"] = y_center - y_half_range
+            bounds["ymax"] = y_center + y_half_range
+        elif (
+            "ymin" in bounds
+            and "ymax" in bounds
+            and ("xmin" not in bounds or "xmax" not in bounds)
+        ):
+            # If x range is not specified, calculate it according to aspect ratio
+            current_bounds = self.get_mathBounds()
+            y_range = bounds.get("ymax", current_bounds["ymax"]) - bounds.get(
+                "ymin", current_bounds["ymin"]
+            )
+            x_center = (current_bounds["xmin"] + current_bounds["xmax"]) / 2
+            x_half_range = (y_range * self.width) / (self.height * 2)
+            bounds["xmin"] = x_center - x_half_range
+            bounds["xmax"] = x_center + x_half_range
+
         import json
 
         # Convert values containing NumPy types to Python standard types
@@ -565,6 +595,41 @@ class DesmosGraph(Group):
         m33 = cos_z
         self.execute_js(
             self._get_set_rotation_js(m11, m12, m13, m21, m22, m23, m31, m32, m33),
+            update_display=update_display,
+        )
+
+    def set_parameter(
+        self, parameter_name: str, parameter_value, update_display: bool = True
+    ):
+        """Set Desmos parameter value by name or ID"""
+        exp_id = parameter_name
+        expressions = list(
+            filter(
+                lambda expr: expr.get("id") == exp_id
+                or ((expr.get("latex") or "").split("=")[0] == exp_id),
+                self.get_expressions(),
+            )
+        )
+        if len(expressions) == 0:
+            raise ValueError(
+                f"Expression ID or parameter name '{exp_id}' not found in Desmos graph."
+            )
+        expression = expressions[0]
+        latex = expression.get("latex", "")
+        parameter_name = ""
+        if expression.get("id") == exp_id:
+            parameter_name = latex.split("=")[0] if latex else ""
+        else:
+            parameter_name = exp_id
+            exp_id = expression.get("id")
+
+        self.execute_js(
+            f"""
+                window.Calc.setExpression({{
+                    id: "{exp_id}",
+                    latex: "{parameter_name}={parameter_value}"
+                }});
+            """,
             update_display=update_display,
         )
 

@@ -14,12 +14,14 @@ A Python library to integrate [Desmos](https://www.desmos.com/) graphs into [Man
 
 ```bash
 pip install git+https://github.com/physy/desmos_in_manim.git
+playwright install chromium
 ```
 
-After installation, you need to install Playwright browsers:
+with uv:
 
 ```bash
-playwright install chromium
+uv add git+https://github.com/physy/desmos_in_manim.git
+uv run playwright install chromium
 ```
 
 ## Requirements
@@ -287,6 +289,7 @@ graph.execute_js("Calc.setExpression({id: 'test', latex: 'y=2x'})")
 | `get_expressions()`      | Get all expressions                                           |
 | `set_mathBounds(bounds)` | Set view bounds (`xmin`, `xmax`, `ymin`, `ymax`)              |
 | `get_mathBounds()`       | Get current view bounds                                       |
+| `set_parameter()`        | Set parameter value by name or ID                             |
 | `set_blank()`            | Clear all expressions                                         |
 | `update_display()`       | Manually refresh the graph image                              |
 | `execute_js(script)`     | Execute JavaScript on Desmos calculator                       |
