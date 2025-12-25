@@ -280,22 +280,22 @@ graph.execute_js("Calc.setExpression({id: 'test', latex: 'y=2x'})")
 
 #### Methods
 
-| Method                   | Description                                                   |
-| ------------------------ | ------------------------------------------------------------- |
-| `set_state(state)`       | Set Desmos state from JSON string                             |
-| `get_state()`            | Get current Desmos state as dict                              |
-| `set_expression(expr)`   | Set a single expression (e.g., `{"id": "1", "latex": "y=x"}`) |
-| `set_expressions(exprs)` | Set multiple expressions                                      |
-| `get_expressions()`      | Get all expressions                                           |
-| `set_mathBounds(bounds)` | Set view bounds (`xmin`, `xmax`, `ymin`, `ymax`)              |
-| `get_mathBounds()`       | Get current view bounds                                       |
-| `set_parameter()`        | Set parameter value by name or ID                             |
-| `set_blank()`            | Clear all expressions                                         |
-| `update_display()`       | Manually refresh the graph image                              |
-| `execute_js(script)`     | Execute JavaScript on Desmos calculator                       |
-| `add_updater(func)`      | Add an updater function                                       |
-| `remove_updater(func)`   | Remove an updater function                                    |
-| `cleanup()`              | Close browser and clean up resources                          |
+| Method                       | Description                                                   |
+| ---------------------------- | ------------------------------------------------------------- |
+| `set_state(state)`           | Set Desmos state from JSON string                             |
+| `get_state()`                | Get current Desmos state as dict                              |
+| `set_expression(expr)`       | Set a single expression (e.g., `{"id": "1", "latex": "y=x"}`) |
+| `set_expressions(exprs)`     | Set multiple expressions                                      |
+| `get_expressions()`          | Get all expressions                                           |
+| `set_mathBounds(bounds)`     | Set view bounds (`xmin`, `xmax`, `ymin`, `ymax`)              |
+| `get_mathBounds()`           | Get current view bounds                                       |
+| `set_parameter(name, value)` | Set parameter value by name or ID                             |
+| `set_blank()`                | Clear all expressions                                         |
+| `update_display()`           | Manually refresh the graph image                              |
+| `execute_js(script)`         | Execute JavaScript on Desmos calculator                       |
+| `add_updater(func)`          | Add an updater function                                       |
+| `remove_updater(func)`       | Remove an updater function                                    |
+| `cleanup()`                  | Close browser and clean up resources                          |
 
 #### Action Methods
 

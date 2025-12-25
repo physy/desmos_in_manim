@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Callable
 from playwright.async_api import async_playwright
-from manim import *
+from manim import *  # type: ignore
 import nest_asyncio
 import numpy as np
 from PIL import Image
@@ -683,9 +683,11 @@ class DesmosGraph(Group):
 
         # Create Mobject directly from file path
         if self.img_format == "svg":
-            new_image = SVGMobject(image_path)
+            new_image = SVGMobject(
+                image_path, width=self.graph_width, height=self.graph_height
+            )
         else:
-            new_image = ImageMobject(image_path)
+            new_image = ImageMobject(image_path, scale_to_resolution=self.graph_height)
 
         self._replace_current_image(new_image)
 
@@ -713,7 +715,7 @@ class DesmosGraph(Group):
             if pil_image.mode != "RGBA":
                 pil_image = pil_image.convert("RGBA")
             numpy_array = np.array(pil_image)
-            new_image = ImageMobject(numpy_array)
+            new_image = ImageMobject(numpy_array, scale_to_resolution=self.graph_height)
 
         self._replace_current_image(new_image)
 
