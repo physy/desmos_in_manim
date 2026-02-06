@@ -603,10 +603,18 @@ class DesmosGraph(Group):
     ):
         """Set Desmos parameter value by name or ID"""
         exp_id = parameter_name
+
+        # Normalize backslashes for comparison (handle both \phi and \\phi)
+        def normalize_param(s):
+            return s.replace("\\\\", "\\") if s else ""
+
+        normalized_exp_id = normalize_param(exp_id)
+
         expressions = list(
             filter(
                 lambda expr: expr.get("id") == exp_id
-                or ((expr.get("latex") or "").split("=")[0] == exp_id),
+                or normalize_param((expr.get("latex") or "").split("=")[0])
+                == normalized_exp_id,
                 self.get_expressions(),
             )
         )
@@ -620,16 +628,12 @@ class DesmosGraph(Group):
         if expression.get("id") == exp_id:
             parameter_name = latex.split("=")[0] if latex else ""
         else:
-            parameter_name = exp_id
+            parameter_name = latex.split("=")[0] if latex else exp_id
             exp_id = expression.get("id")
 
-        self.execute_js(
-            f"""
-                window.Calc.setExpression({{
-                    id: "{exp_id}",
-                    latex: "{parameter_name}={parameter_value}"
-                }});
-            """,
+        # Use set_expression with dict to properly handle special characters like backslashes
+        self.set_expression(
+            {"id": exp_id, "latex": f"{parameter_name}={parameter_value}"},
             update_display=update_display,
         )
 
@@ -761,7 +765,7 @@ class DesmosGraph(Group):
         )
 
     def animate_translation(
-        self, dx=0, dy=0, dz=0, update_display: bool = True, **kwargs
+        self, dx=0.0, dy=0.0, dz=0.0, update_display: bool = True, **kwargs
     ):
         """Create animation to translate the graph"""
         current_bounds = self.get_mathBounds()
@@ -819,10 +823,10 @@ class DesmosGraph(Group):
 
     def animate_zoom(
         self,
-        center_x=0,
-        center_y=0,
-        center_z=0,
-        scale=1,
+        center_x=0.0,
+        center_y=0.0,
+        center_z=0.0,
+        scale=1.0,
         update_display: bool = True,
         **kwargs,
     ):
@@ -848,7 +852,7 @@ class DesmosGraph(Group):
         )
 
     def animate_rotation(
-        self, z_tip_delta=0, xy_rot_delta=0, update_display: bool = True, **kwargs
+        self, z_tip_delta=0.0, xy_rot_delta=0.0, update_display: bool = True, **kwargs
     ):
         """Create animation to rotate 3D graph (relative angle specification)"""
         if not self.is3D:
@@ -965,10 +969,18 @@ class DesmosParameterAnimation(Animation):
         self.start_value = start_value
         self.end_value = end_value
         self.update_display = update_display
+
+        # Normalize backslashes for comparison (handle both \phi and \\phi)
+        def normalize_param(s):
+            return s.replace("\\\\", "\\") if s else ""
+
+        normalized_exp_id = normalize_param(self.exp_id)
+
         expressions = list(
             filter(
                 lambda expr: expr.get("id") == self.exp_id
-                or ((expr.get("latex") or "").split("=")[0] == self.exp_id),
+                or normalize_param((expr.get("latex") or "").split("=")[0])
+                == normalized_exp_id,
                 self.desmos_graph.get_expressions(),
             )
         )
@@ -981,7 +993,9 @@ class DesmosParameterAnimation(Animation):
         if expression.get("id") == self.exp_id:
             self.parameter_name = self.latex.split("=")[0] if self.latex else ""
         else:
-            self.parameter_name = self.exp_id
+            self.parameter_name = (
+                self.latex.split("=")[0] if self.latex else self.exp_id
+            )
             self.exp_id = expression.get("id")
 
     def interpolate_mobject(self, alpha):
