@@ -633,7 +633,7 @@ class DesmosGraph(Group):
 
         # Use set_expression with dict to properly handle special characters like backslashes
         self.set_expression(
-            {"id": exp_id, "latex": f"{parameter_name}={parameter_value}"},
+            {"id": exp_id, "latex": f"{parameter_name}={parameter_value:10f}"},
             update_display=update_display,
         )
 
@@ -1005,7 +1005,7 @@ class DesmosParameterAnimation(Animation):
             self.end_value - self.start_value
         )
         self.desmos_graph.set_expression(
-            {"id": self.exp_id, "latex": f"{self.parameter_name}={current_value}"},
+            {"id": self.exp_id, "latex": f"{self.parameter_name}={current_value:10f}"},
             update_display=self.update_display,
         )
 
