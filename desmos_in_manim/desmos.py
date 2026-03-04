@@ -31,53 +31,59 @@ class DesmosGraph(Group):
         is3D: bool = False,
         calc_options: Dict = {},
         graph_settings: Dict = {},
-        img_format: str = "png",
         use_cache: bool = False,
         **kwargs,
     ):
         """
-        parameters:
+        Create Desmos graph.
+
+        Parameters
         ----------
-        state: str | None
-            Desmos state (JSON string).
-        width: int
-        height: int
-        is3D: bool = False
-        calc_options: {
-            colors: {string: string},
-            fontSize: int,
-            invertedColors: bool,
-            beta3d: bool,
-            advancedStyling: bool,
-            authorMode: bool,
-            disableLighting: bool,
-            translucentOpacity: bool,
-            backgroundColor: string,
-            perspectiveDistortion: int,
-        }
-        graph_settings: {
-            axisLineWidth: int = 1.5,
-            axisLineOffset: int = 0.25,
-            axisOpacity: int = 0.9,
-            curveOpacity: int = 0.7,
-            disableFill: bool = False,
-            graphLineWidth: int = 2.5,
-            highlight: bool = False,
-            labelHangingColor: str = "rgba(150,150,150,1)",
-            labelSize: int = 30,
-            lastChangedAxis: str = "x",
-            majorAxisOpacity: int = 0.4,
-            minorAxisOpacity: int = 0.12,
-            pixelsPerLabel: int = 80,
-            pointLineWidth: int = 9,
-            squareAxes: bool = False,
-            shoeBox3D: bool = True,
-        }
-        img_format: str = "png"
-            Image format to retrieve. 'png' or 'svg'. 3D doesn't support 'svg'.
-        use_cache: bool = False
-            Whether to cache images. If False, processes like get_state() can be skipped, potentially making it faster.
-            Even if True, state calculation is still performed; only the screenshot process is skipped.
+        state : str | None, optional
+            Desmos state (JSON string). Default is None.
+        width : int, optional
+            Width of the graph in pixels. Default is 1920.
+        height : int, optional
+            Height of the graph in pixels. Default is 1080.
+        background_color : str | None, optional
+            Background color in hex format (e.g., "#000000"). Default is "#000000".
+        is3D : bool, optional
+            Whether to use 3D calculator. Default is False.
+        calc_options : dict, optional
+            Desmos calculator options. Available keys include:
+            - colors : dict of str to str
+            - fontSize : float
+            - invertedColors : bool
+            - beta3d : bool
+            - advancedStyling : bool
+            - authorMode : bool
+            - disableLighting : bool
+            - translucentOpacity : bool
+            - backgroundColor : str
+            - perspectiveDistortion : float
+        graph_settings : dict, optional
+            Desmos graph settings. Available keys include:
+            - axisLineWidth : float (default: 1.5)
+            - axisLineOffset : float (default: 0.25)
+            - axisOpacity : float (default: 0.9)
+            - curveOpacity : float (default: 0.7)
+            - disableFill : bool (default: False)
+            - graphLineWidth : float (default: 2.5)
+            - highlight : bool (default: False)
+            - labelHangingColor : str (default: "rgba(150,150,150,1)")
+            - labelSize : float (default: 30)
+            - lastChangedAxis : str (default: "x")
+            - majorAxisOpacity : float (default: 0.4)
+            - minorAxisOpacity : float (default: 0.12)
+            - pixelsPerLabel : int (default: 80)
+            - pointLineWidth : float (default: 9)
+            - squareAxes : bool (default: False)
+            - showBox3D : bool (default: True)
+        use_cache : bool, optional
+            Whether to cache images. When False, processes like get_state()
+            can be skipped, potentially making it faster. Default is False.
+        **kwargs
+            Additional keyword arguments passed to the parent Group class.
         """
         super().__init__(**kwargs)
 
@@ -103,8 +109,11 @@ class DesmosGraph(Group):
                 self.calc_options = {}
             self.calc_options["backgroundColor"] = background_color
         self.graph_settings = graph_settings
-        self.img_format = img_format if not is3D else "png"
         # TODO: svg doesn't display properly, so disable for now
+        # img_format : str, optional
+        #     Image format to retrieve. Either 'png' or 'svg'.
+        #     Note: 3D graphs do not support 'svg'. Default is "png".
+        # self.img_format = img_format if not is3D else "png"
         self.img_format = "png"
         # Set isPlaying to false
         asyncio.run(
