@@ -1,6 +1,6 @@
 [project]
 name = "desmos_in_manim"
-version = "0.1.5"
+version = "0.1.6"
 description = "Add Desmos graphs to Manim animations."
 readme = "README.md"
 authors = [{ name = "UJ" }]
@@ -11,7 +11,7 @@ dependencies = [
     "websocket-client>=1.6.0",
     "pillow>=10.0.0",
     "numpy>=1.24.0",
-    "playwright>=1.55",
+    "playwright==1.57",
     "nest-asyncio>=1.6.0",
 ]
 
