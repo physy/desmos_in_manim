@@ -28,10 +28,11 @@ class DesmosGraph(Group):
         width=1920,
         height=1080,
         background_color: str | None = "#000000",
-        is3D: bool = False,
+        product: str = "auto",
         calc_options: Dict = {},
         graph_settings: Dict = {},
         use_cache: bool = False,
+        is3D: bool | None = None,
         **kwargs,
     ):
         """
@@ -47,8 +48,13 @@ class DesmosGraph(Group):
             Height of the graph in pixels. Default is 1080.
         background_color : str | None, optional
             Background color in hex format (e.g., "#000000"). Default is "#000000".
-        is3D : bool, optional
-            Whether to use 3D calculator. Default is False.
+            Grid display requires background_color to be None for transparency.
+        product : str, optional
+            Desmos product type. One of "graphing", "graphing-3d", or "geometry-calculator".
+            Default is "auto", which selects the product based on the state.
+        is3D : bool | None, optional
+            Deprecated. Use ``product="graphing-3d"`` instead.
+            If True, overrides product selection to "graphing-3d".
         calc_options : dict, optional
             Desmos calculator options. Available keys include:
             - colors : dict of str to str
@@ -100,7 +106,31 @@ class DesmosGraph(Group):
         self.graph_width = width
         self.graph_height = height
         self.background_color = background_color
-        self.is3D = is3D
+
+        if is3D is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'is3D' argument is deprecated and will be removed in a future version. "
+                "Use product='graphing-3d' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        self.product = "graphing"
+        products_available = ["graphing", "graphing-3d", "geometry-calculator"]
+        if product == "auto" and state is not None:
+            state_json: dict = json.loads(state)
+            product_from_state = state_json.get("graph", {}).get("product", "graphing")
+            if product_from_state in products_available:
+                self.product = product_from_state
+        elif product in products_available:
+            self.product = product
+        if is3D is True:
+            self.product = "graphing-3d"
+
+        self.is3D = self.product == "graphing-3d"
+
         self.calc_options = calc_options
         # For 3D, backgroundColor is applied if set in calc_options
         # For 2D, need to fill with inequality
@@ -115,12 +145,15 @@ class DesmosGraph(Group):
         #     Note: 3D graphs do not support 'svg'. Default is "png".
         # self.img_format = img_format if not is3D else "png"
         self.img_format = "png"
-        # Set isPlaying to false
+        # Set isPlaying, playing to false
+        # playing is used for ticker
         asyncio.run(
             self._init_graph(
-                re.sub(r".isPlaying.: *true", '"isPlaying": false', state or "")
+                re.sub(r".(isPlaying|playing).: *true", r'"\1": false', state or "")
             )
         )
+        # Adjust mathBounds to match aspect ratio
+        self.set_mathBounds(self.get_mathBounds())
         self.update_display()
         atexit.register(self.cleanup)
 
@@ -133,6 +166,11 @@ class DesmosGraph(Group):
         )
         self.page = await self.browser.new_page()
         await self.page.set_viewport_size({"width": 600, "height": 400})
+        Calc_methods = {
+            "graphing": "GraphingCalculator",
+            "graphing-3d": "Calculator3D",
+            "geometry-calculator": "Geometry",
+        }
         # HTML longer than this may not be passable via data URL
         await self.page.goto(
             f"""
@@ -142,7 +180,7 @@ class DesmosGraph(Group):
                         <script src="https://www.desmos.com/api/v1.12/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
                         <div id="calc"></div>
                         <script>
-                            window.Calc = Desmos.{ 'Calculator3D' if self.is3D else 'GraphingCalculator' }(document.getElementById("calc"));
+                            window.Calc = Desmos.{ Calc_methods.get(self.product, 'GraphingCalculator') }(document.getElementById("calc"));
                         </script>
                     </body>
                 </html>
@@ -464,7 +502,7 @@ class DesmosGraph(Group):
                 "xmin", current_bounds["xmin"]
             )
             y_center = (current_bounds["ymin"] + current_bounds["ymax"]) / 2
-            y_half_range = (x_range * self.height) / (self.width * 2)
+            y_half_range = (x_range * self.graph_height) / (self.graph_width * 2)
             bounds["ymin"] = y_center - y_half_range
             bounds["ymax"] = y_center + y_half_range
         elif (
@@ -478,7 +516,7 @@ class DesmosGraph(Group):
                 "ymin", current_bounds["ymin"]
             )
             x_center = (current_bounds["xmin"] + current_bounds["xmax"]) / 2
-            x_half_range = (y_range * self.width) / (self.height * 2)
+            x_half_range = (y_range * self.graph_width) / (self.graph_height * 2)
             bounds["xmin"] = x_center - x_half_range
             bounds["xmax"] = x_center + x_half_range
 
@@ -522,13 +560,13 @@ class DesmosGraph(Group):
                 + (bound["ymin"] - bound["ymax"])
                 / 2
                 / (bound["ymax"] - bound["ymin"])
-                * (self.height / self.width)
+                * (self.graph_height / self.graph_width)
                 * (bound["xmax"] - bound["xmin"]),
                 "ymax": (bound["ymin"] + bound["ymax"]) / 2
                 + (-bound["ymin"] + bound["ymax"])
                 / 2
                 / (bound["ymax"] - bound["ymin"])
-                * (self.height / self.width)
+                * (self.graph_height / self.graph_width)
                 * (bound["xmax"] - bound["xmin"]),
             }
         )

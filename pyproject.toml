@@ -1,6 +1,6 @@
 [project]
 name = "desmos_in_manim"
-version = "0.1.6"
+version = "0.1.7"
 description = "Add Desmos graphs to Manim animations."
 readme = "README.md"
 authors = [{ name = "UJ" }]

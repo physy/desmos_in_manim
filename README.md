@@ -267,16 +267,16 @@ graph.execute_js("Calc.setExpression({id: 'test', latex: 'y=2x'})")
 
 #### Constructor
 
-| Parameter          | Type          | Default     | Description                                                        |
-| ------------------ | ------------- | ----------- | ------------------------------------------------------------------ |
-| `state`            | `str \| None` | `None`      | Desmos state JSON string                                           |
-| `width`            | `int`         | `1920`      | Screenshot width                                                   |
-| `height`           | `int`         | `1080`      | Screenshot height                                                  |
-| `background_color` | `str \| None` | `"#000000"` | Background color (hex)                                             |
-| `is3D`             | `bool`        | `False`     | Enable 3D graph mode                                               |
-| `calc_options`     | `dict`        | `{}`        | Desmos calculator options (`Calc.controller.graphSettings.config`) |
-| `graph_settings`   | `dict`        | `{}`        | Graph styling options (`Calc.controller.graphSettings`)            |
-| `use_cache`        | `bool`        | `False`     | Cache screenshots                                                  |
+| Parameter          | Type          | Default     | Description                                                                  |
+| ------------------ | ------------- | ----------- | ---------------------------------------------------------------------------- |
+| `state`            | `str \| None` | `None`      | Desmos state JSON string                                                     |
+| `width`            | `int`         | `1920`      | Screenshot width                                                             |
+| `height`           | `int`         | `1080`      | Screenshot height                                                            |
+| `background_color` | `str \| None` | `"#000000"` | Background color (hex)                                                       |
+| `product`          | `str`         | `"auto"`    | Desmos product type (`"graphing"`, `"graphing-3d"`, `"geometry-calculator"`) |
+| `calc_options`     | `dict`        | `{}`        | Desmos calculator options (`Calc.controller.graphSettings.config`)           |
+| `graph_settings`   | `dict`        | `{}`        | Graph styling options (`Calc.controller.graphSettings`)                      |
+| `use_cache`        | `bool`        | `False`     | Cache screenshots                                                            |
 
 #### Methods
 
